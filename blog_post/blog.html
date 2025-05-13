@@ -4,8 +4,10 @@
 <!-- This is a static and standalone webpage with full support of [Markdown](https://ndossougbe.github.io/strapdown/demos/markdown_syntax.html) and [MathJax 3](https://www.mathjax.org/) for LaTeX rendering and can be used as a template for your own webpage. -->
 <xmp style="display:none;" toc>
 # Spectral Diffusion with Sine Activations
+
 **Garrett Whitmore, Josiah McMenamy**  
-*May 13, 2025*
+*May 13, 2025*  
+*[Source Code](https://github.com/jmcmenamy/6.5830_final_project)*  
 
 # Introduction
 
@@ -153,24 +155,24 @@ Our hypothesis is that sine activations will improve the model’s ability to pr
 
 <div id="fig-loss" style="text-align:center">
   <img src="images/loss_all.png" alt="Loss for all models" style="display: block; margin: auto;" />
-  <strong>Figure 1</strong>
+  <strong>Figure 1: Training Loss per Epoch Across Model Variants</strong>
 </div>
 <br />
 
 <div id="fig-loss-no-outlier" style="text-align:center">
   <img src="images/loss_no_outlier.png" alt="Loss for all models minus 2 epochs" style="display: block; margin: auto;" />
-  <strong>Figure 2</strong>
+  <strong>Figure 2: Training Loss per Epoch Across Model Variants w/o Outlier </strong>
 </div>
 <br />
 
 <div id="fig-learning-rate" style="text-align:center">
   <img src="images/learning_rate_all.png" alt="Learning rate for all models" style="display: block; margin: auto;"/>
-  <strong>Figure 3</strong>
+  <strong>Figure 3: Learning Rate per Epoch Across Model Variants</strong>
 </div>
 <br />
 
  
-<h3>Training Metrics</h3>
+<h3 id="training-metrics">Training Metrics</h3>
  
 
 Figure [[3]](#fig-learning-rate) shows that all five variants share similar cosine annealing learning rate schedules, with a brief warm up to \\\(2.5 \times 10^{-4}\\\) by epoch 2-3, then a smooth decay toward \\\(\sim1\times10^{-5}\\\) over their training runs. The compressed Fourier model, trained for only 20 epochs, follows the same pattern but decays more rapidly to \\(\approx2.4\times10^{-5}\\) by its final epoch. The base ddpm model and sine activation model have nearly identical learning rate curves, and the same is true for the fourier i/o and sine activation fourier i/o models.
@@ -181,7 +183,7 @@ The *hybrid (sine + Fourier)* variant suffered two catastrophic gradient blow up
 
 Finally, the *compressed Fourier* model - where we keep only the top-left block of \\(24\times24\\) DCT coefficients as input - reaches \\(\approx1.49\\) loss in just 20 epochs. Although it doesn’t beat the baseline or sine models, it outperforms the full Fourier variant, implying that reducing spectral dimensionality gives a regularization effect and eases optimization. Due to resource constraints, this model was not trained for 70 epochs like the other models.
 
-<h3>Evaluation Metrics</h3>
+<h3 id="evaluation-metrics">Evaluation Metrics</h3>
 
 <div id="fig-fid" style="text-align:center">
   <img src="images/FID_metrics.png" alt="FID Metrics for all models" style="display: block; margin: auto;"/>
@@ -211,7 +213,7 @@ Figure [[5]](#fig-is) shows the Inception Score (IS) with standard deviation err
 Finally, Figure [[6]](#fig-lpips) plots the Learned Perceptual Image Patch Similarity (LPIPS). Lower LPIPS indicates closer perceptual similarity to ground truth images. The baseline (0.223) and SIREN (0.240) models outperform all Fourier variants, with the pure Fourier model at 0.300 and the hybrid at 0.275. The compressed Fourier model fares worst (0.496), suggesting that discarding spectral components severely degrades low level perceptual fidelity.
  
 
-<h2>Qualititative Comparisons </h2> 
+<h2 id="qualitative-comparisons">Qualititative Comparisons </h2> 
 
 <div style="display: flex; justify-content: center; gap: 1em; flex-wrap: wrap;" id="fig-outputs">
   <div style="flex: 1; text-align: center; min-width: 300px;" id="fig-base">
@@ -380,9 +382,9 @@ ___
 
 
 <!-- strapdown.js -- static markdown syntax for html -->
-<script src="https://ndossougbe.github.io/strapdown/dist/strapdown.js"></script>
+<script src="strapdown.js"></script>
 <!-- Use MathJax to Render LaTeX in MarkDown -->
-<script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script src="polyfill.min.js"></script>
+<script id="MathJax-script" async src="MathJax-3.2.2/es5/tex-mml-chtml.js"></script>
 
 </html>
