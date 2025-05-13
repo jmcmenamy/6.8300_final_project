@@ -13,7 +13,7 @@
 
 Generative modeling has seen an explosion in growth and efficacy with the advent of diffusion based frameworks, which iteratively denoise random noise to synthesize high fidelity images.  Models such as DDPMs, DDIMs and latent diffusion networks now rival or surpass GAN based approaches on metrics like Frechet Inception Distance (FID) and Inception Score (IS), yet they often incur significant computational and memory overhead, hindering real-time applications and deployment on resource constrained devices.
 
-In parallel, classical signal-processing techniques - particularly those grounded in trigonometric and spectral analysis - have demonstrated remarkable ability to encode geometric structure and dynamic patterns.  For example, sine based implicit neural representations capture complex shapes with fewer parameters than conventional activations, and Fourier domain methods have long been the gold standard for isolating and amplifying subtle periodic signals in video.
+In parallel, classical signal-processing techniques, particularly those grounded in trigonometric and spectral analysis, have demonstrated remarkable ability to encode geometric structure and dynamic patterns.  For example, sine based implicit neural representations capture complex shapes with fewer parameters than conventional activations, and Fourier domain methods have long been the gold standard for isolating and amplifying subtle periodic signals in video.
 
 Motivated by these complementary strengths, our work explores whether injecting explicit frequency biases into diffusion architectures can yield more compact, faster sampling, or higher quality generative models.  We begin by surveying existing literature on spectral inductive biases in vision, then detail our framework for integrating sinusoidal activations and Fourier based loss functions into U-Net backbones and sampling schedulers.  Through comprehensive benchmarking on text to image pipelines and CIFAR-10 subsets, we assess trade offs along axes of sample fidelity, parameter efficiency, and runtime speed.
 
@@ -29,7 +29,7 @@ Diffusion models now define the state of the art in text to image synthesis (e.g
 
     Analyses of learned features reveal a bias toward low frequency content, with high frequency edges and textures underrepresented unless explicitly guided.
 
-  Embedding frequency biases - via periodic activation functions or spectral domain operations - offers a promising route to steer capacity toward the most informative bands of the signal, potentially reducing over parameterization, avoiding overfitting, and even accelerating convergence.
+  Embedding frequency biases via periodic activation functions or spectral domain operations offers a promising route to steer capacity toward the most informative bands of the signal, potentially reducing over parameterization, avoiding overfitting, and even accelerating convergence.
 
 ## Research Questions & Objectives
 
@@ -70,13 +70,13 @@ Outside of generative models, spectral techniques have long been exploited for v
 
 To date, no study has simultaneously embedded periodic activation functions *and* leveraged spectral-domain inputs within the core denoising architecture of a diffusion model.  Our project addresses this gap by systematically evaluating:
 
-- *Architectural biases*: augmenting U-Net and transformer blocks with sin activations at key layers
+- *Architectural biases*: augmenting U-Net and transformer blocks with sine activations at key layers
 
 - *Representational biases*: training on Fourier (or DCT/wavelet) coefficients rather than raw pixels
 
 - *Combined effects*: measuring interaction effects when both biases coexist, in terms of sample quality, model size, and inference speed
 
-By unifying these two strands - periodic nonlinearities and frequency-domain processing - our work explores a novel design space for diffusion models that may unlock new trade-offs in efficiency and fidelity.
+By unifying these two approaches, periodic nonlinearities and frequency-domain processing, our work explores a novel design space for diffusion models that may unlock new trade-offs in efficiency and fidelity.
 
 # Methods & Experimental Design
 
@@ -88,10 +88,10 @@ We will implement and evaluate five diffusion model variants to isolate the effe
 
 Our core denoising network is a U-Net with both timestep and class embeddings, as implemented in the Zoubohao DDPM repository [[11]](#zoubohao_ddpm_commit54532d6). In brief:
 
-- **Input Head:** a \\(3 \times 3\\) convolution mapping the 3-channel noisy image into \\(ch\\) feature maps.
+- **Input Head:** a \\(3 \times 3\\) convolution mapping the 3-channel noisy image into `modelConfig['channel']` feature maps.
 - **Time Embedding:** sinusoidal positional embeddings for each diffusion timestep t in [1,T], passed through two linear layers with Swish activations.
 - **Conditional Embedding:** learned embeddings for class labels (with a “null” index to enable unconditional sampling), likewise projected by a small MLP with Swish.
-- **Downsampling Path:** a cascade of *ResBlocks* (GroupNorm > Swish > Conv), each injecting the time and class embeddings via linear projections, interleaved with strided convolutions to reduce spatial resolution.
+- **Downsampling Path:** a cascade of *ResBlocks* (GroupNorm \\(\to\\) Swish \\(\to\\) Conv), each injecting the time and class embeddings via linear projections, interleaved with strided convolutions to reduce spatial resolution.
 - **Bottleneck:** two ResBlocks at the lowest resolution, one augmented by a self attention block (channel wise GroupNorm \\(\to\\) \\(1 \times 1\\) projections \\(\to\\) softmax attention \\(\to\\) reprojection).
 - **Upsampling Path:** symmetric ResBlocks that concatenate skip connections from the down path, followed by transpose convolutions to restore original spatial dimensions.
 - **Output Tail:** GroupNorm \\(\to\\) Swish \\(\to 3 \times 3\\) convolution to predict the noise residual.
@@ -104,18 +104,18 @@ During training, the class embedding is randomly dropped (set to the “null” 
 This variant inherits the exact U-Net + classifier-free guidance architecture from Zoubohao et al. [[11]](#zoubohao_ddpm_commit54532d6), but replaces every Swish activation and small MLP with a periodic Sine layer as in SIREN [[5]](#sitzmann2020siren). In particular:
 
 - **Time and Class Embeddings:** the two-layer MLP that projects sinusoidal positional embeddings (for t) and the conditional embedding (for class labels) now uses a SineLayer (\\(\omega_0 = 30.0\\)) in place of the final Swish + Linear.
-- **ResBlocks:** within each residual block, the GroupNorm \\(\to\\) Swish \\(\to\\) Conv sequence is replaced by GroupNorm \\(\to\\) SineAct(\\(\omega_0=1.0\\)) \\(\to\\) Conv, and the two small linear projections of t-emb and c-emb also use SineLayer.
+- **ResBlocks:** within each residual block, the GroupNorm \\(\to\\) Swish \\(\to\\) Conv sequence is replaced by GroupNorm \\(\to\\) SineAct(\\(\omega_0=1.0\\)) \\(\to\\) Conv, and the two small linear projections of t-emb and c-emb also use SineLayer. SineAct is a sine activation without a linear layer.
 - **Output Tail:** the final normalization and activation before the last, \\(3 \times 3\\) convolution uses SineAct instead of Swish. Using a smaller omega here was needed to prevent blow up in loss.
 
-All other components - down/upsampling blocks, self attention bottleneck, skip connections, and the GradualWarmupScheduler - remain identical to the base model.
+All other components (e.g. down/upsampling blocks, self attention bottleneck, skip connections, and the GradualWarmupScheduler) remain identical to the base model.
 
 ### Fourier Domain I/O Variant
 
-This variant retains the identical U-Net + classifier-free guidance backbone from Zoubohao et al.\ [[11]](#zoubohao_ddpm_commit54532d6), but shifts all data into the frequency domain:
+This variant retains the identical U-Net + classifier-free guidance backbone from Zoubohao et al. [[11]](#zoubohao_ddpm_commit54532d6), but shifts all data into the frequency domain:
 
 - **Training:** each input batch of normalized CIFAR-10 images is transformed with a 2D DCT (dct_batch), and the network is trained to predict the noise residual in DCT coefficient space rather than pixel space.
 - **Inference:** at sampling time, the U-Net outputs a tensor of DCT coefficients; these are converted back to RGB images via an inverse 2D DCT (idct_batch) so that results can be visualized.
-- **Everything else:** optimizer, warm-up + cosine LR schedule, network depth/width, attention blocks, and classifier-free guidance dropout - all remain unchanged from the base DDPM.
+- **Everything else:** optimizer, warm-up + cosine LR schedule, network depth/width, attention blocks, and classifier-free guidance dropout; all remain unchanged from the base DDPM.
 
 
 ### Sine Activation with Fourier Domain I/O Variant
@@ -137,7 +137,11 @@ Building on the Fourier I/O variant [[11]](#zoubohao_ddpm_commit54532d6), this m
  
 ## Training Setup
 
-We used Google Colab to access GPUs and spend up to $100 on training, using the Google compute credits generously generously provided by course staff.
+We used Google Cloud Vertex AI Colab Enterprise to access GPUs and spend up to $100 on training, using the Google compute credits generously generously provided by course staff. Each model was trained on a runtime with:
+
+- Machine type n1-standard-8
+- GPU type NVIDIA_TESLA_V100 x 1
+- Data disk type 100 GB Standard Disk (pd-standard)
 
 ## Evaluation Metrics
 
@@ -177,12 +181,13 @@ Our hypothesis is that sine activations will improve the model's ability to pres
 
 Figure [[3]](#fig-learning-rate) shows that all five variants share similar cosine annealing learning rate schedules, with a brief warm up to \\\(2.5 \times 10^{-4}\\\) by epoch 2-3, then a smooth decay toward \\\(\approx 1\times10^{-5}\\\) over their training runs. The compressed Fourier model, trained for only 20 epochs, follows the same pattern but decays more rapidly to \\(\approx2.4\times10^{-5}\\) by its final epoch. The base ddpm model and sine activation model have nearly identical learning rate curves, and the same is true for the fourier i/o and sine activation fourier i/o models.
 
-Turning to the loss curves (Figure [[1]](#fig-loss) and[[2]](#fig-loss-no-outlier)), the *baseline DDPM* converges fastest and reaches the lowest training loss (\\(\approx1.38\\) by epoch 70). The *sine activation* model trails closely (\\(\approx1.41\\)), suggesting that replacing ReLUs with sinusoids alone offers minimal benefit on CIFAR-10 at \\(32\times32\\) resolution. The *Fourier I/O* model converges more slowly and levels off at a higher loss (\\(\approx1.65\\)), indicating that operating entirely in DCT space adds optimization difficulty - likely because the network must learn to manipulate highly correlated frequency coefficients rather than spatial pixels.
+Turning to the loss curves (Figure [[1]](#fig-loss) and[[2]](#fig-loss-no-outlier)), the *baseline DDPM* converges fastest and reaches the lowest training loss (\\(\approx1.38\\) by epoch 70). The *sine activation* model trails closely (\\(\approx1.41\\)), suggesting that replacing ReLUs with sinusoids alone offers minimal benefit on CIFAR-10 at \\(32\times32\\) resolution. The *Fourier I/O* model converges more slowly and levels off at a higher loss (\\(\approx1.65\\)), indicating that operating entirely in DCT space adds optimization difficulty, likely because the network must learn to manipulate highly correlated frequency coefficients rather than spatial pixels.
 
-The *hybrid (sine + Fourier)* variant suffered two catastrophic gradient blow ups at epochs 7-8 (loss \\(>30\\)), visible as the red spikes in Figure [[1]](#fig-loss). Once those outliers are removed (Figure [[2]](#fig-loss-no-outlier)), it recovers and gradually converges to \\(\approx1.67\\) by epoch 70 - worse than the pure Fourier model. This instability suggests that combining high frequency sine nonlinearity with frequency domain inputs amplifies training sensitivity (e.g., to initialization, learning rate, or gradient clipping).
+The *hybrid (sine + Fourier)* variant suffered two catastrophic gradient blow ups at epochs 7-8 (loss \\(>30\\)), visible as the red spikes in Figure [[1]](#fig-loss). Once those outliers are removed (Figure [[2]](#fig-loss-no-outlier)), it recovers and gradually converges to \\(\approx1.67\\) by epoch 70, which is worse than the pure Fourier model. This instability suggests that combining high frequency sine nonlinearity with frequency domain inputs amplifies training sensitivity (e.g., to initialization, learning rate, or gradient clipping).
 
-Finally, the *compressed Fourier* model - where we keep only the top-left block of \\(24\times24\\) DCT coefficients as input - reaches \\(\approx1.49\\) loss in just 20 epochs. Although it doesn't beat the baseline or sine models, it outperforms the full Fourier variant, implying that reducing spectral dimensionality gives a regularization effect and eases optimization. Due to resource constraints, this model was not trained for 70 epochs like the other models.
+Finally, the *compressed Fourier* model, where we keep only the top-left block of \\(24\times24\\) DCT coefficients as input, reaches \\(\approx1.49\\) loss in just 20 epochs. Although it doesn't beat the baseline or sine models, it outperforms the full Fourier variant, implying that reducing spectral dimensionality gives a regularization effect and eases optimization. Due to resource constraints, this model was not trained for 70 epochs like the other models.  
 
+<br/>
 <h3 id="evaluation-metrics">Evaluation Metrics</h3>
 
 <div id="fig-fid" style="text-align:center">
@@ -192,7 +197,7 @@ Finally, the *compressed Fourier* model - where we keep only the top-left block 
 </div>
 <br />
 
-Figure [[4]](#fig-fid) reports the Fréchet Inception Distance (FID) for each of our five model variants. Both the pure Fourier I/O model (FID \\(= 413.9\\)) and the hybrid SIREN + Fourier model (FID \\(= 413.2\\)) achieve dramatic reductions in FID compared to the pixel space baselines (baseline \\(= 681.9\\), SIREN \\(= 699.5\\)). The compressed Fourier model retains much of this benefit (FID \\(= 463.9\\)) despite only keeping the top left \\(24 \times 24\\) block of DCT coefficients. This shows that operating in frequency space - and even aggressively downsampling the spectrum - can significantly improve the match to the Inception feature statistics that FID measures.
+Figure [[4]](#fig-fid) reports the Fréchet Inception Distance (FID) for each of our five model variants. Both the pure Fourier I/O model (FID \\(= 413.9\\)) and the hybrid SIREN + Fourier model (FID \\(= 413.2\\)) achieve dramatic reductions in FID compared to the pixel space baselines (baseline \\(= 681.9\\), SIREN \\(= 699.5\\)). The compressed Fourier model retains much of this benefit (FID \\(= 463.9\\)) despite only keeping the top left \\(24 \times 24\\) block of DCT coefficients. This shows that operating in frequency space, and even aggressively downsampling the spectrum, can improve the match to the Inception feature statistics that FID measures.
 
 <div id="fig-is" style="text-align:center">
   <img src="images/IS_metrics.png" alt="IS Metrics for all models" style="display: block; margin: auto;"/>
